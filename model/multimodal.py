@@ -65,7 +65,7 @@ class Net(nn.Module):
 
         return y
 
-    def observe(self, x, t, y):
+    def observe(self, x, t, y, ep):
         self.zero_grad()
         self.loss(self.forward(x, t), y).backward()
         self.optimizer.step()

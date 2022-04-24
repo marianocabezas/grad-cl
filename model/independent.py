@@ -61,7 +61,7 @@ class Net(torch.nn.Module):
         else:
             return output
 
-    def observe(self, x, t, y):
+    def observe(self, x, t, y, ep):
         # detect beginning of a new task
         if self.finetune and t > 0 and t != self.old_task:
             # initialize current network like the previous one

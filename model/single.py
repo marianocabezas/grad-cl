@@ -57,7 +57,7 @@ class Net(torch.nn.Module):
                 output[:, offset2:self.n_outputs].data.fill_(-10e10)
         return output
 
-    def observe(self, x, t, y):
+    def observe(self, x, t, y, ep):
         # if t == 1:
         #     import pdb
         #     pdb.set_trace()

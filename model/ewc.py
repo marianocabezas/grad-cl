@@ -66,7 +66,7 @@ class Net(torch.nn.Module):
                 output[:, int(offset2):self.n_outputs].data.fill_(-10e10)
         return output
 
-    def observe(self, x, t, y):
+    def observe(self, x, t, y, ep):
         self.net.train()
 
         # next task?
