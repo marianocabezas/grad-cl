@@ -117,7 +117,7 @@ def ResNet18(nclasses, nf=20):
     return ResNet(BasicBlock, [2, 2, 2, 2], nclasses, nf)
 
 
-def ResNet18_TinyImagenet(nclasses, pretrained=True):
+def ResNet18_TinyImagenet(nclasses, pretrained=False):
     model_ft = resnet18_tinyimagenet(pretrained=pretrained)
     model_ft.avgpool = nn.AdaptiveAvgPool2d(1)
     model_ft.fc = nn.Linear(512, nclasses)
