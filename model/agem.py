@@ -11,7 +11,7 @@ import torch.optim as optim
 import numpy as np
 import quadprog
 
-from .common import MLP, ResNet18
+from .common import MLP, ResNet18, ResNet18_TinyImagenet
 
 # Auxiliary functions useful for GEM's inner optimization.
 
