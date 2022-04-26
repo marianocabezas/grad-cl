@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import torch
-from .common import MLP, ResNet18
+from .common import MLP, ResNet18, ResNet18_TinyImagenet_Independent
 
 
 class Net(torch.nn.Module):
@@ -30,6 +30,12 @@ class Net(torch.nn.Module):
             if self.is_cifar:
                 self.nets.append(
                     ResNet18(int(n_outputs / n_tasks), int(20 / n_tasks)))
+            elif self.is_imagenet:
+                self.nets.append(
+                    ResNet18_TinyImagenet_Independent(
+                        int(n_outputs / n_tasks),
+                        int(64 // n_tasks + 1),
+                        pretrained=False))
             else:
                 self.nets.append(
                     MLP([n_inputs] + [int(nh / n_tasks)] * nl + [n_outputs]))
