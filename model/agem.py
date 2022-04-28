@@ -219,7 +219,7 @@ class Net(nn.Module):
                 with open('log.log', 'a') as f:
                     f.write(
                         "now training task {}, memory {} loss: {} Prec@1 {}\n".
-                        format(t, tt, ptloss.item(), top1.item()))
+                        format(t, tt, ptloss.item(), top1))
                 ptloss.backward()
                 store_grad(self.parameters, self.grads, self.grad_dims,
                            past_task)
