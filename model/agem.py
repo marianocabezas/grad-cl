@@ -215,7 +215,7 @@ class Net(nn.Module):
                                  self.memory_labs[past_task] - offset1)
                 top1, top5 = accuracy(output[:, offset1:offset2],
                                       self.memory_labs[past_task] - offset1,
-                                      topk=(1, 5))
+                                      topk=(1, ))
                 with open('log.log', 'a') as f:
                     f.write(
                         "now training task {}, memory {} loss: {} Prec@1 {}\n".
@@ -233,7 +233,7 @@ class Net(nn.Module):
 
         top1, top5 = accuracy(output[:, offset1:offset2],
                               y - offset1,
-                              topk=(1, 5))
+                              topk=(1, ))
 
         loss.backward()
 
