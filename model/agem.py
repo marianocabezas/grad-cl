@@ -213,7 +213,7 @@ class Net(nn.Module):
                 output = self.forward(self.memory_data[past_task], past_task)
                 ptloss = self.ce(output[:, offset1:offset2],
                                  self.memory_labs[past_task] - offset1)
-                top1, top5 = accuracy(output[:, offset1:offset2],
+                top1 = accuracy(output[:, offset1:offset2],
                                       self.memory_labs[past_task] - offset1,
                                       topk=(1, ))
                 with open('log.log', 'a') as f:
@@ -230,10 +230,6 @@ class Net(nn.Module):
         offset1, offset2 = compute_offsets(t, self.nc_per_task, self.is_cifar)
         output = self.forward(x, t)
         loss = self.ce(output[:, offset1:offset2], y - offset1)
-
-        top1, top5 = accuracy(output[:, offset1:offset2],
-                              y - offset1,
-                              topk=(1, ))
 
         loss.backward()
 
