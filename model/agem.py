@@ -20,15 +20,14 @@ def accuracy(output, target, topk=(1, )):
     """Computes the precision@k for the specified values of k"""
     maxk = max(topk)
     batch_size = target.size(0)
+
     _, pred = output.topk(maxk, 1, True, True)
     pred = pred.t()
     correct = pred.eq(target.view(1, -1).expand_as(pred))
 
     res = []
     for k in topk:
-        correct_k = correct[:k].contiguous().view(-1).float().sum(
-            0, keepdim=True
-        )
+        correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
 
@@ -104,8 +103,6 @@ def project2cone2(gradient, memories, margin=0.5, eps=1e-3):
     G = np.eye(t)
     h = np.zeros(t) + margin
     v = quadprog.solve_qp(P, q, G, h)[0]
-    with open('log.log', 'a') as f:
-        print("v: {}".format(v))
     x = np.dot(v, memories_np) + gradient_np
     gradient.copy_(torch.Tensor(x).view(-1, 1))
 
@@ -123,10 +120,12 @@ class Net(nn.Module):
         super(Net, self).__init__()
         nl, nh = args.n_layers, args.n_hiddens
         self.margin = args.memory_strength
+        # setup network
         self.is_cifar = (args.data_file == 'cifar100.pt'
                          or args.data_file == 'cifar10.pt')
 
         self.is_imagenet = (args.data_file == 'tiny-imagenet-200.pt')
+
         if self.is_cifar:
             self.net = ResNet18(n_outputs)
         elif self.is_imagenet:
@@ -164,14 +163,18 @@ class Net(nn.Module):
         self.observed_tasks = []
         self.old_task = -1
         self.mem_cnt = 0
-        if self.is_cifar:
+        if self.is_cifar or self.is_imagenet:
             self.nc_per_task = int(n_outputs / n_tasks)
         else:
             self.nc_per_task = n_outputs
 
+        # record losses
+        self.first_loss = []
+        self.all_loss = []
+
     def forward(self, x, t):
         output = self.net(x)
-        if self.is_cifar:
+        if self.is_cifar or self.is_imagenet:
             # make sure we predict classes within the current task
             offset1 = int(t * self.nc_per_task)
             offset2 = int((t + 1) * self.nc_per_task)
@@ -182,6 +185,7 @@ class Net(nn.Module):
         return output
 
     def observe(self, x, t, y, ep):
+
         # update memory
         if t != self.old_task:
             self.observed_tasks.append(t)
@@ -202,34 +206,54 @@ class Net(nn.Module):
 
         # compute gradient on previous tasks
         if len(self.observed_tasks) > 1:
+            all_memory_losses = 0
             for tt in range(len(self.observed_tasks) - 1):
                 self.zero_grad()
                 # fwd/bwd on the examples in the memory
                 past_task = self.observed_tasks[tt]
 
-                offset1, offset2 = compute_offsets(past_task, self.nc_per_task,
-                                                   self.is_cifar)
+                offset1, offset2 = compute_offsets(
+                    past_task, self.nc_per_task,
+                    (self.is_cifar or self.is_imagenet))
                 output = self.forward(self.memory_data[past_task], past_task)
                 ptloss = self.ce(output[:, offset1:offset2],
                                  self.memory_labs[past_task] - offset1)
-                top1 = accuracy(output[:, offset1:offset2],
-                                      self.memory_labs[past_task] - offset1,
-                                      topk=(1, ))
-                with open('log.log', 'a') as f:
-                    f.write(
-                        "now training task {}, memory {} loss: {} Prec@1 {}\n".
-                        format(t, tt, ptloss.item(), top1))
+                if tt == 0:
+                    self.first_loss.append(ptloss.item())
+                all_memory_losses += ptloss.item()
+
+                # top1 = accuracy(
+                #     output[:, offset1:offset2],
+                #     self.memory_labs[past_task] - offset1,
+                #     topk=(1))
+                # with open('log.log', 'a') as f:
+                #     f.write(
+                #         "now training task {}, memory {} loss: {} Prec@1 {}\n".
+                #         format(t, tt, ptloss.item(), top1.item()))
+                print('ep: {}'.format(ep))
+                if ep == 3:
+                    ptloss = ptloss * 0.1
                 ptloss.backward()
                 store_grad(self.parameters, self.grads, self.grad_dims,
                            past_task)
+            self.all_loss.append(all_memory_losses)
 
         # now compute the grad on the current minibatch
         self.zero_grad()
 
-        offset1, offset2 = compute_offsets(t, self.nc_per_task, self.is_cifar)
+        offset1, offset2 = compute_offsets(t, self.nc_per_task,
+                                           (self.is_cifar or self.is_imagenet))
         output = self.forward(x, t)
         loss = self.ce(output[:, offset1:offset2], y - offset1)
+        print("losses {}".format(loss.item()))
 
+        top1 = accuracy(output[:, offset1:offset2], y - offset1, topk=(1, ))
+        print("top1 {}".format(top1))
+        # with open('log.log', 'a') as f:
+        #     f.write("now training task {}, new_task {} loss: {} Prec@1 {}\n".
+        #             format(t, t, loss.item(), top1.item()))
+        if ep == 3:
+            loss = loss * 0.1
         loss.backward()
 
         # check if gradient violates constraints
@@ -244,11 +268,7 @@ class Net(nn.Module):
             dotp = torch.mm(self.grads[:, t].unsqueeze(0),
                             average_grad)
 
-            # dotp = torch.mm(self.grads[:, t].unsqueeze(0),
-            #                 self.grads.index_select(1, indx))
             if (dotp < 0).sum() != 0:
-                # project2cone2(self.grads[:, t].unsqueeze(1),
-                #               self.grads.index_select(1, indx), self.margin)
                 project2cone2(self.grads[:, t].unsqueeze(1),
                               average_grad, self.margin)
                 # copy gradients back

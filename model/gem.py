@@ -120,8 +120,10 @@ class Net(nn.Module):
         super(Net, self).__init__()
         nl, nh = args.n_layers, args.n_hiddens
         self.margin = args.memory_strength
-        self.is_cifar = (args.data_file == 'cifar100.pt') or (
-            args.data_file == 'cifar10.pt')
+        # setup network
+        self.is_cifar = (args.data_file == 'cifar100.pt'
+                         or args.data_file == 'cifar10.pt')
+
         self.is_imagenet = (args.data_file == 'tiny-imagenet-200.pt')
 
         if self.is_cifar:
@@ -211,7 +213,8 @@ class Net(nn.Module):
                 past_task = self.observed_tasks[tt]
 
                 offset1, offset2 = compute_offsets(
-                    tt, self.nc_per_task, (self.is_cifar or self.is_imagenet))
+                    past_task, self.nc_per_task,
+                    (self.is_cifar or self.is_imagenet))
                 output = self.forward(self.memory_data[past_task], past_task)
                 ptloss = self.ce(output[:, offset1:offset2],
                                  self.memory_labs[past_task] - offset1)
@@ -264,7 +267,6 @@ class Net(nn.Module):
                             self.grads.index_select(1, indx))
 
             if (dotp < 0).sum() != 0:
-                # if True:
                 project2cone2(self.grads[:, t].unsqueeze(1),
                               self.grads.index_select(1, indx), self.margin)
                 # copy gradients back
