@@ -304,8 +304,8 @@ if __name__ == "__main__":
     one_liner += ' '.join(["%.3f" % stat for stat in stats])
     print(fname + ': ' + one_liner + ' # ' + str(spent_time))
 
-    import pdb
-    pdb.set_trace()
+    # import pdb
+    # pdb.set_trace()
     if hasattr(model, 'first_loss'):
         first_loss = np.array(model.first_loss)
         all_loss = np.array(model.all_loss)
